@@ -57,10 +57,15 @@ void BoundingBoxLayer::update(float delta)
 void BoundingBoxLayer::addBoundingObject(cocos2d::Node* object)
 {
     object->setPosition((this->getContentSize() - object->getContentSize()) / 2);
+    
+    const float angle = random(0, 359);
+    const float angleRad = angle * (M_PI / 180.f);
+    Vec2 velocity = Vec2(cos(angleRad), sin(angleRad));
+    velocity *= random(70, 140);
 
     MoveComponent* component = MoveComponent::create();
     component->setName("MoveComponent");
-    component->setVelocity(Vec2(random(80, 140), random(80, 140)));
+    component->setVelocity(velocity);
     object->addComponent(component);
     
     this->addChild(object);
