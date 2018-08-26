@@ -9,6 +9,11 @@ void BoundingBoxLayer::onEnter()
     
     this->initSubLayers();
     this->scheduleUpdate();
+    
+    EventListenerTouchOneByOne* listener = EventListenerTouchOneByOne::create();
+    listener->onTouchBegan = CC_CALLBACK_2(Layer::onTouchBegan, this);
+    listener->onTouchEnded = CC_CALLBACK_2(Layer::onTouchEnded, this);
+    this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(listener, this);
 }
 
 void BoundingBoxLayer::onExit()
@@ -87,4 +92,39 @@ void BoundingBoxLayer::initSubLayers()
     ParticleSystemQuad* emitter = ParticleSystemQuad::create("particle/centralPart.plist");
     emitter->setPosition(this->getContentSize() / 2);
     this->addChild(emitter);
+}
+
+bool BoundingBoxLayer::onTouchBegan(cocos2d::Touch *touch, cocos2d::Event *event)
+{
+    return true;
+}
+
+void BoundingBoxLayer::onTouchEnded(cocos2d::Touch *touch, cocos2d::Event *event)
+{
+    const Vec2 touchLocation = this->convertTouchToNodeSpace(touch);
+    std::vector<Node*> touchedNodes = {};
+    
+    for (Node* child : this->getChildren())
+    {
+        MoveComponent* move = dynamic_cast<MoveComponent*>(child->getComponent("MoveComponent"));
+        if (move == nullptr)
+        {
+            continue;
+        }
+        
+        Rect childArea = Rect(child->getPosition(), child->getContentSize());
+        
+        const bool isTouched = childArea.containsPoint(touchLocation);
+        if (!isTouched)
+        {
+            continue;
+        }
+        
+        touchedNodes.push_back(child);
+    }
+    
+    for (Node* node : touchedNodes)
+    {
+        node->removeFromParent();
+    }
 }

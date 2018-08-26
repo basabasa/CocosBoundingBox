@@ -17,6 +17,9 @@ public:
     
 private:
     void initSubLayers();
+    
+    bool onTouchBegan(cocos2d::Touch *touch, cocos2d::Event *event) override;
+    void onTouchEnded(cocos2d::Touch *touch, cocos2d::Event *event) override;
 };
 
 #endif /* BoundingBoxLayer_hpp */
