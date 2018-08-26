@@ -1,113 +1,108 @@
 #include "HelloWorldScene.h"
 #include "SimpleAudioEngine.h"
+#include "BoundingBoxLayer.hpp"
 
 USING_NS_CC;
+
+enum UI_TAG {
+    UI_TAG_BOX_LAYER = 1,
+};
 
 Scene* HelloWorld::createScene()
 {
     return HelloWorld::create();
 }
 
-// Print useful error message instead of segfaulting when files are not there.
-static void problemLoading(const char* filename)
-{
-    printf("Error while loading: %s\n", filename);
-    printf("Depending on how you compiled you might have to add 'Resources/' in front of filenames in HelloWorldScene.cpp\n");
-}
-
-// on "init" you need to initialize your instance
 bool HelloWorld::init()
 {
-    //////////////////////////////
-    // 1. super init first
     if ( !Scene::init() )
     {
         return false;
     }
+    
+    this->initBoundingBoxLayers();
+    this->initMenuItems();
 
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-    Vec2 origin = Director::getInstance()->getVisibleOrigin();
-
-    /////////////////////////////
-    // 2. add a menu item with "X" image, which is clicked to quit the program
-    //    you may modify it.
-
-    // add a "close" icon to exit the progress. it's an autorelease object
-    auto closeItem = MenuItemImage::create(
-                                           "CloseNormal.png",
-                                           "CloseSelected.png",
-                                           CC_CALLBACK_1(HelloWorld::menuCloseCallback, this));
-
-    if (closeItem == nullptr ||
-        closeItem->getContentSize().width <= 0 ||
-        closeItem->getContentSize().height <= 0)
-    {
-        problemLoading("'CloseNormal.png' and 'CloseSelected.png'");
-    }
-    else
-    {
-        float x = origin.x + visibleSize.width - closeItem->getContentSize().width/2;
-        float y = origin.y + closeItem->getContentSize().height/2;
-        closeItem->setPosition(Vec2(x,y));
-    }
-
-    // create menu, it's an autorelease object
-    auto menu = Menu::create(closeItem, NULL);
-    menu->setPosition(Vec2::ZERO);
-    this->addChild(menu, 1);
-
-    /////////////////////////////
-    // 3. add your codes below...
-
-    // add a label shows "Hello World"
-    // create and initialize a label
-
-    auto label = Label::createWithTTF("Hello World", "fonts/Marker Felt.ttf", 24);
-    if (label == nullptr)
-    {
-        problemLoading("'fonts/Marker Felt.ttf'");
-    }
-    else
-    {
-        // position the label on the center of the screen
-        label->setPosition(Vec2(origin.x + visibleSize.width/2,
-                                origin.y + visibleSize.height - label->getContentSize().height));
-
-        // add the label as a child to this layer
-        this->addChild(label, 1);
-    }
-
-    // add "HelloWorld" splash screen"
-    auto sprite = Sprite::create("HelloWorld.png");
-    if (sprite == nullptr)
-    {
-        problemLoading("'HelloWorld.png'");
-    }
-    else
-    {
-        // position the sprite on the center of the screen
-        sprite->setPosition(Vec2(visibleSize.width/2 + origin.x, visibleSize.height/2 + origin.y));
-
-        // add the sprite as a child to this layer
-        this->addChild(sprite, 0);
-    }
     return true;
 }
 
-
-void HelloWorld::menuCloseCallback(Ref* pSender)
+void HelloWorld::initBoundingBoxLayers()
 {
-    //Close the cocos2d-x game scene and quit the application
-    Director::getInstance()->end();
+    const Size size = this->getContentSize();
+    const Size boundingSize = size * 0.7f;
+    const Vec2 boundingPos  = (size - boundingSize) / 2;
+    
+    LayerColor* wall = LayerColor::create(Color4B::WHITE);
+    wall->setContentSize(boundingSize + Size(4.f, 4.f));
+    wall->setPosition(boundingPos - Vec2(2.f, 2.f));
+    this->addChild(wall);
+    
+    LayerColor* boxBg = LayerColor::create(Color4B::BLACK);
+    boxBg->setContentSize(boundingSize);
+    boxBg->setPosition(boundingPos);
+    this->addChild(boxBg);
+    
+    BoundingBoxLayer* boxLayer = BoundingBoxLayer::create();
+    boxLayer->setTag(UI_TAG_BOX_LAYER);
+    boxLayer->setContentSize(boundingSize);
+    boxLayer->setPosition(boundingPos);
+    this->addChild(boxLayer);
+}
 
-    #if (CC_TARGET_PLATFORM == CC_PLATFORM_IOS)
-    exit(0);
-#endif
+void HelloWorld::initMenuItems()
+{
+    Vector<MenuItem*> menuItems;
+    
+    {
+        Label *label = Label::createWithSystemFont("add", "Arial", 26);
+        MenuItemLabel *item = MenuItemLabel::create(label, std::bind(&HelloWorld::onTouchedAddItem, this));
+        menuItems.pushBack(item);
+    }
+    {
+        Label *label = Label::createWithSystemFont("reset", "Arial", 26);
+        MenuItemLabel *item = MenuItemLabel::create(label, std::bind(&HelloWorld::onTouchedResetItem, this));
+        menuItems.pushBack(item);
+    }
 
-    /*To navigate back to native iOS screen(if present) without quitting the application  ,do not use Director::getInstance()->end() and exit(0) as given above,instead trigger a custom event created in RootViewController.mm as below*/
+    Menu *menu = Menu::createWithArray(menuItems);
+    menu->alignItemsHorizontallyWithPadding(50.f);
+    menu->setPositionY(this->getContentSize().height * 0.1f);
+    this->addChild(menu);
+}
 
-    //EventCustom customEndEvent("game_scene_close_event");
-    //_eventDispatcher->dispatchEvent(&customEndEvent);
+void HelloWorld::onTouchedAddItem()
+{
+    BoundingBoxLayer* boxLayer = this->getChildByTag<BoundingBoxLayer*>(UI_TAG_BOX_LAYER);
+    CCASSERT(boxLayer != nullptr, "<!> BoundingBoxLayer is null.");
+    
+    Node* object = this->createBoundingObject();
+    boxLayer->addBoundingObject(object);
+}
 
+void HelloWorld::onTouchedResetItem()
+{
+    BoundingBoxLayer* boxLayer = this->getChildByTag<BoundingBoxLayer*>(UI_TAG_BOX_LAYER);
+    CCASSERT(boxLayer != nullptr, "<!> BoundingBoxLayer is null.");
 
+    boxLayer->resetBoundingObject();
+}
+
+cocos2d::Node* HelloWorld::createBoundingObject()
+{
+    LayerColor *object = LayerColor::create(Color4B::GRAY, 40, 40);
+    
+    Color4B colors[5] = {
+        Color4B::RED,
+        Color4B::BLUE,
+        Color4B::GREEN,
+        Color4B::YELLOW,
+        Color4B::MAGENTA,
+    };
+    int index = random(0, 4);
+    
+    LayerColor *objectContent = LayerColor::create(colors[index], 38, 38);
+    objectContent->setPosition(1, 1);
+    object->addChild(objectContent);
+
+    return object;
 }
